@@ -324,7 +324,7 @@ If:
 market spread > fair spread
 ```
 
-the perp is rich versus the curve and the trade favors a short.
+the perp is cheap versus the curve and the trade favors a long perp / short CME hedge.
 
 If:
 
@@ -332,7 +332,7 @@ If:
 market spread < fair spread
 ```
 
-the market is already too tight and the short is undercompensated.
+the perp is rich versus the curve and the trade favors a short perp / long CME hedge.
 
 ## Final takeaway
 

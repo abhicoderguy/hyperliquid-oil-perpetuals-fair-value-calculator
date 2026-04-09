@@ -772,12 +772,14 @@ class SignalGenerator:
         fair_spread = oracle - fair_mark
         edge = market_spread - fair_spread
 
-        if edge > self.threshold:
+        # If market spread is narrower than fair, the perp is rich vs fair and
+        # the trade is to sell/short the perp against the CME hedge.
+        if edge < -self.threshold:
             action = "SELL"
-            strength = min(1.0, edge / (3.0 * self.threshold))
-        elif edge < -self.threshold:
-            action = "BUY"
             strength = min(1.0, abs(edge) / (3.0 * self.threshold))
+        elif edge > self.threshold:
+            action = "BUY"
+            strength = min(1.0, edge / (3.0 * self.threshold))
         else:
             action = "HOLD"
             strength = 0.0
