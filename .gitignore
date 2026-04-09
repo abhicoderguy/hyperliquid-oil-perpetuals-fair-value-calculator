@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.DS_Store
+.env
+public_github_package/
