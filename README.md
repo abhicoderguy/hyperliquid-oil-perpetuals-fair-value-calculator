@@ -73,7 +73,7 @@ The exchange schedule tells us exactly when the oracle weights change. The CME c
 
 For WTI, trade.xyz references a fixed calendar schedule.
 
-At the start of the month, the oracle references the next calendar-month CME contract. Then, on the 6th through 10th business days, it rolls in 20% increments into the following contract.
+At the start of the month, the oracle references the next calendar-month CME contract. The protocol roll period spans the 5th through 10th exchange business days of the month: five 20% step transitions begin on the 5th business day, leaving the oracle fully rolled into the following contract on the 10th business day.
 
 For the April 2026 case:
 

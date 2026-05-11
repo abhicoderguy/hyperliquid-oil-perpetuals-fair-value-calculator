@@ -53,12 +53,72 @@ def contract_symbol(root: str, year: int, month: int) -> str:
     return f"{root}{MONTH_CODES[month]}{str(year)[-1]}"
 
 
+def easter_date(year: int) -> date:
+    """Return Western Easter Sunday for Gregorian calendar years."""
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+
+def observed_fixed_holiday(year: int, month: int, day: int) -> date:
+    holiday = date(year, month, day)
+    if holiday.weekday() == 5:
+        return holiday - timedelta(days=1)
+    if holiday.weekday() == 6:
+        return holiday + timedelta(days=1)
+    return holiday
+
+
+def nth_weekday(year: int, month: int, weekday: int, occurrence: int) -> date:
+    cursor = date(year, month, 1)
+    while cursor.weekday() != weekday:
+        cursor += timedelta(days=1)
+    return cursor + timedelta(days=7 * (occurrence - 1))
+
+
+def last_weekday(year: int, month: int, weekday: int) -> date:
+    next_month_year, next_month = add_months(year, month, 1)
+    cursor = date(next_month_year, next_month, 1) - timedelta(days=1)
+    while cursor.weekday() != weekday:
+        cursor -= timedelta(days=1)
+    return cursor
+
+
+def nymex_full_close_holidays(year: int) -> set[date]:
+    """Approximate full NYMEX/CME energy-market holidays relevant to roll counts."""
+    return {
+        observed_fixed_holiday(year, 1, 1),
+        nth_weekday(year, 1, 0, 3),          # Martin Luther King Jr. Day
+        nth_weekday(year, 2, 0, 3),          # Presidents Day
+        easter_date(year) - timedelta(days=2),
+        last_weekday(year, 5, 0),            # Memorial Day
+        observed_fixed_holiday(year, 6, 19),
+        observed_fixed_holiday(year, 7, 4),
+        nth_weekday(year, 9, 0, 1),          # Labor Day
+        nth_weekday(year, 11, 3, 4),         # Thanksgiving
+        observed_fixed_holiday(year, 12, 25),
+    }
+
+
 def list_business_days(year: int, month: int) -> List[date]:
-    """Return weekdays in the given month; trade.xyz rolls use business days in ET."""
+    """Return exchange business days in the given month for trade.xyz roll timing."""
     days: List[date] = []
     cursor = date(year, month, 1)
+    holidays = nymex_full_close_holidays(year)
     while cursor.month == month:
-        if cursor.weekday() < 5:
+        if cursor.weekday() < 5 and cursor not in holidays:
             days.append(cursor)
         cursor += timedelta(days=1)
     return days
@@ -110,8 +170,9 @@ class WTIRollScheduleBuilder:
     Build the trade.xyz WTI roll schedule dynamically.
 
     trade.xyz references the next calendar-month WTI future at the start of each
-    month and rolls into the following contract on the 6th-10th business day at
-    5:30 PM New York time.
+    month. The protocol roll period spans the 5th through 10th exchange business
+    days, implemented as five 20% transitions beginning on the 5th business day
+    at 5:30 PM New York time.
     """
 
     def __init__(self, root_symbol: str = "CL"):
@@ -128,7 +189,9 @@ class WTIRollScheduleBuilder:
     def build_roll_window(self, year: int, month: int) -> RollWindow:
         front_symbol, back_symbol = self._month_start_pair(year, month)
         business_days = list_business_days(year, month)
-        shift_days = business_days[5:10]
+        # Five transitions cover the protocol's 5th-10th business-day roll period:
+        # after the 9th business-day transition, the 10th business day is fully rolled.
+        shift_days = business_days[4:9]
         shifts: List[OracleShift] = []
 
         for idx, shift_day in enumerate(shift_days):
