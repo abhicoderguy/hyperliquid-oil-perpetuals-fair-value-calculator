@@ -34,13 +34,15 @@ import argparse
 import os
 import math
 from dataclasses import dataclass
-from datetime import date, datetime, time as clock_time, timedelta, timezone
+from datetime import datetime, time as clock_time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import databento as db
 import pandas as pd
 import requests
+
+from fair_value_spline import list_business_days
 
 
 UTC = timezone.utc
@@ -83,19 +85,10 @@ class RollEvent:
     back_weight: float
 
 
-def list_business_days(year: int, month: int) -> list[date]:
-    days: list[date] = []
-    cursor = date(year, month, 1)
-    while cursor.month == month:
-        if cursor.weekday() < 5:
-            days.append(cursor)
-        cursor += timedelta(days=1)
-    return days
-
-
 def build_roll_events(year: int, month: int) -> list[RollEvent]:
     business_days = list_business_days(year, month)
-    shift_days = business_days[5:10]
+    # Five transitions cover the protocol's 5th-10th business-day roll period.
+    shift_days = business_days[4:9]
     front_weights = [0.80, 0.60, 0.40, 0.20, 0.00]
     events: list[RollEvent] = []
 
